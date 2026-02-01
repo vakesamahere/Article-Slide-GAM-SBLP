@@ -1,0 +1,941 @@
+% A beamer presentation using classical article style
+\documentclass[10pt, aspectratio=169]{beamer}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{booktabs} % For nicer tables
+\usepackage{graphicx}
+\usepackage[style=apa, backend=biber]{biblatex}
+\addbibresource{references.bib}
+
+\usetheme{Warsaw}
+\usecolortheme{default}
+\usefonttheme{professionalfonts}
+
+% Custom definitions for math
+\newcommand{\vtilde}{\tilde{v}}
+\newcommand{\Vtilde}{\tilde{V}}
+
+\title{A General Attraction Model and Sales-Based Linear Program for Network Revenue Management Under Customer Choice (\cite{gallego2014general})}
+\author{Presenter: Ziyue Zhang}
+\date{\today}
+
+\begin{document}
+\frame{\titlepage}
+
+% Intro
+\section{Introduction}
+\subsection{Overview}
+\begin{frame}
+  \frametitle{Overview}
+  \framesubtitle{What is the problem we are trying to solve?}
+  \begin{block}{One of the area of Revenue Management}
+    Incorporate \textbf{demand dependencies} into optimization models\\
+    when \textbf{maximizing revenue} by controlling the \textbf{products offered}.
+  \end{block}
+  $\downarrow$ (Revenue maximization, Demand dependencies, Offer set control)
+  \begin{block}{What is critical}
+    How customer demand is \textbf{redirected} when available products changes?
+  \end{block}
+\end{frame}
+\begin{frame}
+  \frametitle{Warm up: Terms}
+  \begin{itemize}
+    \setlength{\itemsep}{1.5em}
+    \item \underline{outside option}: No purchase or buy from competitors.
+    \item \underline{offer set}: The set of products made available.
+    \item \underline{spill}: Demand lost to outside option when a product is closed.
+    \item \underline{recapture}: Demand redirected to other available products.
+  \end{itemize}
+\end{frame}
+
+\subsection{Related Works}
+\begin{frame}
+  \frametitle{Related Works}
+  \begin{block}{Discrete choice modeling}
+    \begin{itemize}
+      \item \underline{Basic Attraction Model (BAM)}: Assumes $Recapture \propto Attraction$. Over-optimistic. Suffer from IIA \& Red/Blue Bus Paradox.
+      \item \underline{Independent Demand Model (IDM)}: Assumes $Recapture = 0$. Over-pessimistic. Leaves money on the table.
+    \end{itemize}
+  \end{block}
+  \begin{block}{Network Revenue Management}
+      \textbf{Choice-Based Linear Program (CBLP)}
+      \begin{itemize}
+        \item Decision variables: Time duration of offer sets $\alpha(S)$.
+        \item Complexity: Exponential variables ($2^N$), requires column generation.
+      \end{itemize}
+  \end{block}
+\end{frame}
+
+\subsection{Contribution of This Paper}
+\begin{frame}
+  \frametitle{Contribution}
+  \begin{block}{Discrete choice modeling}
+    Propose a \textbf{General Attraction Model (GAM)} that overcomes the limitations of existing choice models.
+    \begin{itemize}
+      \item Incorporate both spill and recapture effects in modeling customer choice behavior.
+    \end{itemize}
+  \end{block}
+  \begin{block}{Network revenue management}
+    Develop a \textbf{Sales-Based Linear Program (SBLP)} that approximates the choice-based network revenue management problem under the GAM.
+    \begin{itemize}
+      \item Solvable, scalable, theoretical performance guarantees.
+      \item Insight of the optimal policy structure.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% General Attraction Model
+\section{General Attraction Model}
+\subsection{Notation}
+\begin{frame}
+  \frametitle{Notation}
+  \begin{itemize}
+    \item $N$: product universe \(N=\{1,2,\ldots,n\}\).
+    \item $S$: offer set, \(S \subseteq N\).
+    \item $\pi_{j}(S)$: probability that a customer chooses product \(j\) from offer set \(S\).
+    \item $S_{+}$: augmented offer set, \(S_{+} = S \cup \{0\}\) where 0 is the outside option.
+    \item $\pi_{0}(S)$: probability that a customer chooses the outside option from offer set \(S\).
+    \vspace{1.5em}
+    \item $v_{j}$: measure of attraction of product \(j\), \(j \in N\).
+    \item $v_{0}$: measure of attraction of the outside option.
+    \item For a product set $H$, define \(V(H) = \sum_{j \in H} v_{j}\). (Attraction of a choice set)
+  \end{itemize}
+\end{frame}
+\subsection{Recall BAM}
+\begin{frame}
+  \frametitle{Recall: Basic Attraction Model (BAM)}
+  \begin{block}{BAM Choice Probability}
+    \[
+      \pi_{j}(S) = \frac{v_{j}}{v_{0} + V(S)}, \quad \forall j \in S
+    \]
+  \end{block}
+  
+  \begin{exampleblock}{Behavior of BAM}
+      There is considerable \textbf{empirical evidence} that the BAM may be optimistic in estimating recapture probabilities. BAM assumes even if a a customer prefers $j \notin S_{+}$, he must select among $k \in S_{+}$. This ignores the possibility that the customer may look for products $j \notin S_{+}$ elsewhere.
+      \[
+        \{
+        \underbrace{\text{choose in $S$}}_{\sum_{j=1}^{|S|}\frac{v_{j}}{v_{0} + V(S)}},\quad
+        \underbrace{\text{choose outside $S$}}_{\frac{v_{0}}{v_{0} + V(S)}},\quad
+        \underbrace{\text{look what I want (in $N \setminus S$) elsewhere}}_{\text{ignored}}
+        \}
+      \]
+  \end{exampleblock}
+\end{frame}
+\subsection{Model}
+\begin{frame}
+  \frametitle{The Core Innovation: Shadow Attraction}
+  \begin{definition}[Shadow Attraction $w_j$]
+      When product $j$ is removed from offer set $S$, its attraction $v_j$ splits into:
+      \begin{itemize}
+          \item $w_j \in [0, v_j]$: attraction of substitute products of $j$ outside $S$ when $j$ is unavailable.
+          \item $v_j - w_j$: adjusted attraction of $j$ that is redistributed among products in $S$ when $j$ is unavailable.
+      \end{itemize}
+  \end{definition}
+  
+  \begin{exampleblock}{Behavior of BAM}
+      \[
+        \{
+        \underbrace{\text{choose in $S$}}_{\sum_{j=1}^{|S|}\frac{v_{j}}{v_{0} + W(\bar{S}) + V(S)}},\quad
+        \underbrace{\text{choose outside $S$}}_{\frac{v_{0}}{v_{0} + W(\bar{S}) + V(S)}},\quad
+        \underbrace{\text{look what I want (in $N \setminus S$) elsewhere}}_{\frac{W(\bar{S})}{v_{0} + W(\bar{S}) + V(S)}}
+        \}
+      \]
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}
+  \begin{align*}
+    \pi_{j}(S) & = \frac{v_{j}}{v_{0} + W(\bar{S}) + V(S)} = \frac{v_{j}}{v_{0} + \sum_{k \notin S} w_k + \sum_{k \in S} v_k} \\
+    & = \frac{v_{j}}{v_{0} + \sum_{k \in N} w_k + \sum_{k \in S} \vtilde_k}, \quad \forall j \in S
+  \end{align*}
+  $$\vtilde_j = v_j - w_j,\quad \forall j \in N,\qquad \vtilde_0 = v_0+ \sum_{k \in N} w_k $$
+  \begin{block}{GAM}
+    \begin{align*}
+      \pi_{j}(S) & = \frac{v_{j}}{\vtilde_0 + \Vtilde(S)}, \quad \forall j \in S, \qquad \text{where \(\Vtilde(S) = \sum_{j \in S} \vtilde_j\)}\\
+      \pi_{0}(S) & = \frac{v_0+ \sum_{k \notin S} w_k}{\vtilde_0 + \Vtilde(S)}
+    \end{align*}
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Unifying BAM and IDM}
+  \begin{table}[]
+      \centering
+      \begin{tabular}{lcc}
+          \toprule
+          \textbf{Model} & \textbf{Shadow Attraction} & \textbf{Adjusted Attraction} \\
+          \midrule
+          BAM (MNL) & $w_j = 0$ & $\vtilde_j = v_j$ \\
+          IDM & $w_j = v_j$ & $\vtilde_j = 0$ \\
+          \textbf{GAM} & $0 \le w_j \le v_j$ & $\vtilde_j = v_j - w_j$ \\
+          \bottomrule
+      \end{tabular}
+  \end{table}
+  
+  \begin{block}{p-GAM (Parametric GAM)}
+      Assume $w_j = \theta v_j$, where $\theta \in [0,1]$ is the recapture coefficient.
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Addressing the Paradox}
+  \framesubtitle{Does GAM solve the independence of irrelevant alternatives (IIA)?}
+  
+  \begin{columns}
+  \column{0.5\textwidth}
+  \begin{alertblock}{The Bad News (IIA Remains)}
+      Ratio of choosing any two internal products is constant:
+      \[ \frac{\pi_i(S)}{\pi_j(S)} = \frac{v_i}{v_j} \]
+      GAM cannot model asymmetric substitution (e.g., A substitutes B but not C).
+  \end{alertblock}
+  
+  \column{0.5\textwidth}
+  \begin{exampleblock}{The Good News (Aggregate Share)}
+      \textbf{Red Bus / Blue Bus Paradox}:
+      Adding a clone product shouldn't inflate total market share.
+      \begin{itemize}
+          \item \textbf{BAM:} Denominator $+v_{blue}$. (Inflates share).
+          \item \textbf{GAM:} High $w$ for similar products implies $\vtilde$ is small.
+          \item Denominator doesn't explode. Total bus share is stable.
+      \end{itemize}
+  \end{exampleblock}
+  \end{columns}
+  
+\end{frame}
+
+\begin{frame}[allowframebreaks]
+  \frametitle{Red Bus / Blue Bus Paradox}
+  % instruct a table showing the red bus/blue bus paradox
+  \begin{exampleblock}{BAM Example}
+      \begin{itemize}
+          \item Initial offer set: $\{car, red bus\}$.
+          \item New offer set: $\{car, red bus, blue bus\}$ (clone of red bus).
+          \item BAM predicts:
+          \[
+            \pi_{car}(\{car, red bus\}) = \frac{v_{car}}{v_{0} + v_{car} + v_{red}}
+            \]\[
+            \pi_{car}(\{car, red bus, blue bus\}) = \frac{v_{car}}{v_{0} + v_{car} + v_{red} + v_{blue}}
+          \]
+          \item Adding blue bus reduces car's market share.
+      \end{itemize}
+  \end{exampleblock}
+  \framebreak
+  \begin{exampleblock}{GAM Example}
+      \begin{itemize}
+          \item Assume high shadow attraction for buses: $w_{red} \approx v_{red}, w_{blue} \approx v_{blue}$.
+          \item GAM predicts:
+          \[
+            \pi_{car}(\{car, red bus\}) = \frac{v_{car}}{v_{0} + W(\{blue\}) + v_{car} + v_{red}}
+            \]\[
+            \pi_{car}(\{car, red bus, blue bus\}) = \frac{v_{car}}{v_{0} + W(\emptyset) + v_{car} + v_{red} + v_{blue}}
+          \]
+          \item Denominator barely changes; car's market share remains stable.
+      \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+\subsection{Justification 1: Axiomatic Foundation}
+\begin{frame}[allowframebreaks]{Revisiting Luce's Axiom}
+    \textbf{The Context:} 
+    Modeling how demand shifts when the offer set $S$ changes (recapture).
+    
+    \textbf{Axiom 1}
+    If $\pi_i(\{i\}) \in (0,1), \,\forall i\in T$, then for $R \subset S_{+},\, S \subset T$:
+    $$ \pi_R(T) = \pi_R(S) \pi_{S_{+}}(T) $$
+
+    \textbf{Axiom 2}
+    If $\pi_i(\{i\}) = 0$, then for any $S \supseteq T$ such that $i \in S$:
+    $$ \pi_S(T) = \pi_{S-\{i\}}(T-\{i\}) $$
+
+    \framebreak
+    
+    \textbf{implies:}
+    \begin{itemize}
+        \item Axiom 1 implies the \textbf{BAM (MNL)} structure: $\pi_j(S) = \frac{v_j}{v_0 + V(S)}$.
+        \item Axiom 1 implies that adding items ($T \setminus S$) steals demand from $S$ strictly proportionally to their attraction.
+        \item $j$ removed from $S$ redirects all its demand to other items in $S_{+}$.
+        \item \textit{Result:} Often misrepresents real-world recapture behavior.
+    \end{itemize}
+    
+    \textbf{Goal:} Generalize Axiom 1 to control the recapture rate.
+
+\end{frame}
+
+% Slide 2: The Generalized Luce Axiom (GLA)
+\begin{frame}{The Generalized Luce Axiom (GLA)}
+    To allow for partial recapture, we introduce \textbf{Axiom 1'}.
+    
+    \textbf{Axiom 1':}
+    For any $\emptyset \neq R \subset S \subset T$:
+    $$ \frac{\pi_R(T)}{\pi_R(S)} = 1 - \sum_{j \in T \setminus S} (1 - \theta_j) \pi_j(T) $$
+    where $\theta_j \in [0,1]$ for all $j \in N$.
+    
+    \textbf{Interpretation of $\theta_j$:}
+    \begin{itemize}
+        \item Remaining $(1-\theta_j)$ portion is recaptured as in BAM (Luce's axiom) by $S_{+}$. $\theta_j$ portion of demand for $j$ goes to outside option when $j$ is removed from $S$. 
+        \item \textbf{$\theta_j = 0$:} Reduces to Luce's Axiom (BAM) $\to$ High recapture.
+        \item \textbf{$\theta_j = 1$:} The term vanishes $\to$ No impact on ratio $\to$ IDM behavior (Low/No recapture).
+      \end{itemize}
+      \textbf{Axiom 2} (handling zero probability items) remains unchanged.
+\end{frame}
+
+% Slide 3: Theorem 1 (Equivalence)
+\begin{frame}{Theorem 1: Establishing the GAM}
+    \begin{block}{Theorem 1 }
+        A choice model satisfies the GLA (Axioms 1' and 2) \textbf{if and only if} it is a General Attraction Model (GAM).
+        
+        Furthermore, the shadow attraction $w_j$ is defined by:
+        $$ w_j = \theta_j v_j \quad \forall j \in N $$
+    \end{block}
+
+    \textbf{The Resulting GAM Structure:}
+    $$ \pi_j(S) = \frac{v_j}{v_0 + W(\bar{S}) + V(S)} $$
+    \begin{itemize}
+        \item $v_j$: Standard attraction.
+        \item $w_j$: Shadow attraction (demand lost to competition/non-purchase).
+        \item $W(\bar{S}) = \sum_{k \notin S} w_k$: Penalty for not offering set $\bar{S}$.
+    \end{itemize}
+\end{frame}
+
+% Slide 4: Proof Sketch (Appendix A)
+\begin{frame}{Proof Sketch of Theorem 1}
+    \textbf{Part 1: GAM $\implies$ GLA}
+    \begin{itemize}
+        \item \small Assume GAM form. Let $\tilde{v}_0 = v_0 + W(N)$ and $\tilde{v}_j = v_j - w_j$.
+        \item LHS of Axiom 1' becomes: $\frac{\tilde{v}_0 + \tilde{V}(S)}{\tilde{v}_0 + \tilde{V}(T)}$.
+        \item RHS: Substitute $\theta_j = 1 - \tilde{v}_j/v_j$. The algebra simplifies to match LHS.
+    \end{itemize}
+
+    \textbf{Part 2: GLA $\implies$ GAM}
+    \begin{itemize}
+        \item \small Set $R=\{i\}, S \subset N, T=N$ in Axiom 1'.
+        \item Rearrange to isolate $\pi_i(S)$:
+        $$ \pi_i(S) = \frac{\pi_i(N)}{1 - \sum_{j \notin S} (1 - \theta_j)\pi_j(N)} $$
+        \item Define $v_i = \pi_i(N)$ and expand the denominator using $1 = \sum \pi_k(N)$.
+        \item \textbf{Result:} This matches the GAM form $\frac{v_i}{\tilde{v}_0 + \tilde{V}(S)}$. \qed
+    \end{itemize}
+\end{frame}
+
+\subsection{Justification 2: Limit of Nested Logit}
+% Slide 1: Setup - The Competitive Scenario
+\begin{frame}{Revisiting: Nested Logit under Competition}
+    \textbf{The Scenario:} 
+    \begin{itemize}
+        \item Consider a market with $N$ products.
+        \item Each product $i$ is offered by a set of vendors (or variants) $O_i$.
+        \item This forms a \textbf{Nested Logit (NL)} structure:
+            \begin{itemize}
+                \item \textbf{Upper Level:} Choose a product $i$ (Nest).
+                \item \textbf{Lower Level:} Choose a specific vendor $j \in O_i$ for product $i$.
+            \end{itemize}
+    \end{itemize}
+
+    \textbf{Key Assumption:}
+    The offerings within a nest are highly correlated. We analyze the limit as the dissimilarity parameter $\gamma_i \to 0$ (perfect correlation).
+    
+    \textit{Intuition:} Customers simply pick the "best" version of the product available. If the best version is gone, they might switch products or not buy.
+\end{frame}
+
+% Slide 2: The Nested Logit Probability
+\begin{frame}{The Nested Logit Formulation}
+    Let $v_{ij}$ be the attraction of product $i$ from vendor $j$.
+    
+    The probability of choosing product $i$ from vendor $j$ (denoted as item $ij$) given offer set $S$ is:
+    
+    $$ \pi_{ij}(S) = P(\text{Product } i) \times P(\text{Vendor } j \mid \text{Product } i) $$
+    
+    $$ \pi_{ij}(S) = \frac{\left(\sum_{l \in O_i \cap S} v_{il}^{1/\gamma_i}\right)^{\gamma_i}}{v_0 + \sum_{k} \left(\sum_{l \in O_k \cap S} v_{kl}^{1/\gamma_k}\right)^{\gamma_k}} \times \frac{v_{ij}^{1/\gamma_i}}{\sum_{l \in O_i \cap S} v_{il}^{1/\gamma_i}} $$
+    
+    where $\gamma_i$ is the dissimilarity parameter for nest $i$.
+\end{frame}
+
+\begin{frame}{Theorem 2: GAM as Limit of NL}
+    \begin{block}{Theorem 2 }
+        $\gamma_k \to 0$ for all nests $k$, the Nested Logit model converges to a General Attraction Model (GAM).
+    \end{block}
+\end{frame}
+
+% Slide 3: Taking the Limit
+\begin{frame}{Proof: Taking the Limit ($\gamma \to 0$)}
+    We analyze the behavior as $\gamma_k \to 0$ for all $k$.
+    
+    \textbf{Mathematical Fact:} $L_p$ norm converges to $L_\infty$ norm.
+    $$ \lim_{\gamma \to 0} \left(\sum v^{1/\gamma}\right)^\gamma = \max(v) $$
+    
+    \textbf{The Probabilities in the Limit:}
+    \begin{itemize}
+        \item The "Inclusive Value" of nest $k$ becomes the value of the \textbf{best} available option: $\max_{l \in O_k \cap S} v_{kl}$.
+        \item The conditional probability $P(j|i)$ becomes:
+        \begin{itemize}
+            \item $1$ if $v_{ij} = \max_{l \in O_i \cap S},\qquad v_{il} \neq v_{ik},\,\forall k \neq j$ (Vendor $j$ is the unique best).
+            \item $0$ or $\frac{1}{m}$ otherwise, where $m$ is the number of vendors tied for best.
+        \end{itemize}
+    \end{itemize}
+    
+    Thus, the customer simply compares the \textit{best} available variant of each product against the no-purchase option.
+\end{frame}
+
+% Slide 4: Proof of Theorem 2 (Mapping to GAM)
+\begin{frame}[allowframebreaks]{Proof: Mapping to GAM Structure}
+    Consider the perspective of a specific vendor $j$. Let $S_j$ be the set of products offered by $j$.
+    
+    Define the "Best Competitor" values for any product $k$:
+    \begin{itemize}
+        \item $V_{kj} = \max_{l \in O_k \cup \{j\}} v_{kl}$ (Best value if vendor $j$ offers $k$)
+        \item $V_{kj}^- = \max_{l \in O_k, l \neq j} v_{kl}$ (Best value if vendor $j$ does \textbf{not} offer $k$)
+    \end{itemize}
+
+    The probability that a customer chooses product $i$ from vendor $j$ is:
+    $$ \pi_i(S_j) = \frac{V_{ij}P(j|i)}{v_0 + \sum_{k \in S_j} V_{kj} + \sum_{k \notin S_j} V_{kj}^-} $$
+    
+    \textbf{Rearranging the denominator:}
+    $$ \text{Denom} = v_0 + \sum_{k \in N} V_{kj}^- + \sum_{k \in S_j} (V_{kj} - V_{kj}^-) = v_0 + \sum_{k \in N} V_{kj}^- + \sum_{k \in S_j} (V_{kj} - V_{kj}^-)P(j|i) $$
+    
+    This matches the GAM form:
+    $$ \pi_i(S) = \frac{\tilde{v}_{ij}}{\tilde{v}_{0j} + \tilde{V}_j(S)} $$
+    where $v_{ij} = V_{ij},\, w_{ij} = V_{ij}^-,\, \tilde{v}_{ij} = V_{ij} - V_{ij}^-$ and $\tilde{v}_{0j} = v_0 + \sum V_{kj}^-$. \qed
+\end{frame}
+
+\subsection{Limitations}
+\begin{frame}{Limitations and Heuristic Uses of GAM}
+    \textbf{Limitations}
+    \begin{itemize}
+        \item In practice, attraction values ($v$) and shadow attractions ($w$) may depend on \textbf{covariates} (e.g., customer segments, product attributes).
+        \item \textbf{Solution:} Use a \textbf{Latent Class} model or a Mixture of GAMs to capture heterogeneity .
+    \end{itemize}
+
+    \textbf{Heuristic Uses}
+    \begin{itemize}
+        \item Even without tracking competitors, a single-firm GAM fits data better than BAM.
+        \item \textbf{Example 1 (Motivating Example):}
+            \begin{itemize}
+                \item Scenario: Store 1 observes selection probabilities under different offer sets.
+                \item Result: GAM recovers probabilities perfectly (by adjusting $w$), whereas BAM has an error of $\approx 2\%$ .
+                \item \textit{Insight:} GAM provides flexibility to estimate recapture rates anywhere between the extremes of BAM (full recapture) and IDM (no recapture).
+            \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\subsection{Parameter Estimation}
+\begin{frame}[allowframebreaks]{GAM Parameter Estimation: EM Algorithm}
+
+    \textbf{Initialization (Least Squares Approach)}
+    
+    We need initial estimates for $\lambda$, $v$, and $w$ (unknown) $\to$ minimize the difference between the model's expected sales and the actual observed sales.
+    
+    \begin{itemize}
+        \item \textbf{Objective:} Minimize the sum of squared errors over all time periods $t=1,\dots,T$:
+        $$
+        \min_{\lambda, v, w} \sum_{t=1}^{T}\sum_{i \in S_{t}}\left[ \underbrace{\lambda\frac{v_{i}}{v_{0}+V(S_{t})+W(\overline{S}_{t})}}_{\text{Expected Sales } E[Z_{ti}]} - \underbrace{z_{ti}}_{\text{Observed Sales}} \right]^{2}
+        $$
+        \item \textbf{Subject to Constraints:}
+        \begin{itemize}
+            \item $0 \le w_j \le v_j \quad \forall j \in N$ (Shadow attraction logic)
+            \item $\lambda \ge 0$ (Arrival rate non-negativity)
+        \end{itemize}
+        \item \textbf{Output:} Initial estimates $\lambda^{(0)}, v^{(0)}, w^{(0)}$.
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{Iterative Process: Repeat E-step and M-step}
+    
+    % "restoring" potential demand (E-step) and optimizing the difficult parameters using Least Squares (M-step).
+
+    \textbf{E-step (Demand Estimation \& Update $v$)}
+    \begin{itemize}
+        \item \textbf{Estimate Potential Demand:} Calculate what demand $\hat{X}_{tj}$ would have been if the full set $N$ was offered, based on current parameters $v^{(k)}, w^{(k)}$:
+        $$
+        \hat{X}_{tj}^{(k)} = 
+        \begin{cases} 
+           z_{tj} \frac{\pi_j(N)}{\pi_j(S_t)} & \text{if } j \in S_t \text{ (Product was offered)} \\
+           e'z_t \frac{\pi_j(N)}{\pi_{S_t}(S_t)} & \text{if } j \notin S_t \text{ (Product was not offered)}
+        \end{cases}
+        $$
+        \item \textbf{Update $v$:} Aggregate demand over time (using weights $\omega_{tj}$ to reduce variance) to update attraction values:
+        $$ v_{j}^{(k+1)} = \frac{\sum_{t=1}^{T}\hat{X}_{tj}^{(k)}\omega_{tj}^{(k)}}{\hat{X}_{0}^{(k)}} \quad \forall j \in N $$
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{M-step (Update $w$ and $\lambda$)}
+    
+    Instead of solving complex Maximum Likelihood equations for $w$, the algorithm leverages the Least Squares approach again, which is computationally more stable.
+
+    \begin{itemize}
+        \item \textbf{Fix $v$:} Use the updated $v^{(k+1)}$ from the E-step.
+        \item \textbf{Optimize:} Solve the Least Squares problem to find the new arrival rate $\lambda$ and shadow attractions $w$:
+        $$
+        \min_{\lambda, w} \sum_{t=1}^{T}\sum_{i \in S_{t}}\left[ \lambda\frac{v_{i}^{(k+1)}}{v_{0}+V^{(k+1)}(S_{t})+W(\overline{S}_{t})} - z_{ti} \right]^{2}
+        $$
+        \item \textbf{Constraint:} Maintain $0 \le w \le v^{(k+1)}$.
+        \item \textbf{Output:} Updated parameters $\lambda^{(k+1)}$ and $w^{(k+1)}$ for the next iteration.
+    \end{itemize}
+
+\end{frame}
+
+% \begin{frame}{Estimation Performance}
+%     Tested via simulation (500 instances, 5 products, 15 periods):
+    
+%     \textbf{1. Known Market Share ($s$):}
+%     \begin{itemize}
+%         \item Parameter estimates are highly accurate for BAM ($w=0$), p-GAM ($w=\theta v$), and GAM.
+%         \item \textbf{MSE:} GAM achieves the lowest error, accurately capturing recapture behavior.
+%     \end{itemize}
+    
+%     \textbf{2. Unknown Market Share ($s$):}
+%     \begin{itemize}
+%         \item \textbf{Bias:} Parameter estimates ($\lambda, v$) show significant bias (often $\lambda$ is too low, $v$ too high).
+%         \item \textbf{Fit Quality:} Despite parameter bias, the \textbf{fit to data} (predicted sales) remains excellent.
+%         \item \textit{Conclusion:} There exists a "ridge" of parameter values that fit the data well enough for practical forecasting, even if the exact structural parameters are identified with bias.
+%     \end{itemize}
+% \end{frame}
+
+% Sales-Based Linear Program
+\section{Sales-Based Linear Program}
+\begin{frame}[allowframebreaks]{Stochastic Network RM \& The CBLP}
+
+    \textbf{Problem Setting \& Scenario}
+    
+    We consider a network Revenue Management problem over a finite horizon $T$ with initial capacity $c$.
+    
+    \begin{itemize}
+        \item \textbf{Market Segments:} There are $L$ segments, indexed by $l \in \mathfrak{L} = \{1, \dots, L\}$.
+        \item \textbf{Arrivals:} Customers for segment $l$ arrive via a Poisson process with rate $\lambda_l$.
+        \item \textbf{Products:} For each segment $l$, there is a consideration set of potential products $N_l$.
+        \item \textbf{Decisions:} At any time $t$, the firm chooses an offer set $S_l \subseteq N_l$ for each segment.
+        \item \textbf{Choice Model:} $\pi_{lk}(S_l)$ is the probability a customer in segment $l$ chooses product $k$, given offer set $S_l$.
+        \item \textbf{Parameters:}
+            \begin{itemize}
+                \item $p_{lk}$: Fare for product $k$ in segment $l$.
+                \item $A_{lk}$: Vector of resources consumed by product $k$.
+            \end{itemize}
+    \end{itemize}
+
+    \framebreak
+    
+    Let $J(t, x)$ be the maximum expected revenue with time-to-go $t$ and remaining inventory $x$. The Hamilton-Jacobi-Bellman (HJB) equation is:
+
+    $$
+    \frac{\partial J(t,x)}{\partial t} = \sum_{l \in \mathfrak{L}} \lambda_l \max_{S_l \subseteq N_l} \sum_{k \in S_l} \pi_{lk}(S_l) \left( p_{lk} - \Delta_{lk}J(t,x) \right)
+    $$
+
+    \begin{itemize}
+        \item \textbf{Opportunity Cost:} $\Delta_{lk}J(t,x) = J(t,x) - J(t, x - A_{lk})$ represents the expected marginal cost of consuming resources for product $k$.
+        \item \textbf{Boundary Conditions:} $J(0,x) = 0$ and $J(t,0) = 0$.
+        \item \textit{Note:} Solving this DP is computationally intractable for large networks due to the curse of dimensionality.
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{The Choice-Based Linear Program (CBLP)}
+    
+    To obtain a tractable upper bound $\bar{J}(T,c)$, we have a deterministic linear program based on the aggregate time products are offered.
+
+    \textbf{Variables \& Parameters:}
+    \begin{itemize}
+        \item $\alpha_l(S_l)$: Decision variable, the \textbf{proportion of time} set $S_l$ is offered to segment $l$.
+        \item $r_l(S_l) = \sum_{k \in N_l} p_{lk} \pi_{lk}(S_l)$: Expected revenue rate per customer given offer set $S_l$.
+        \item $A_l \pi_l(S_l)$: Expected resource consumption rate given offer set $S_l$.
+    \end{itemize}
+
+    \textbf{CBLP Formulation:}
+    $$
+    \begin{aligned}
+    \max_{\alpha} \quad & \sum_{l \in \mathfrak{L}} \lambda_l T \sum_{S_l \subseteq N_l} r_l(S_l) \alpha_l(S_l) \\
+    \text{s.t.} \quad & \sum_{l \in \mathfrak{L}} \lambda_l T \sum_{S_l \subseteq N_l} A_l \pi_l(S_l) \alpha_l(S_l) \le c \quad (\text{Capacity}) \\
+    & \sum_{S_l \subseteq N_l} \alpha_l(S_l) = 1, \quad \forall l \in \mathfrak{L} \quad (\text{Time Constraint}) \\
+    & \alpha_l(S_l) \ge 0
+    \end{aligned}
+    $$
+    
+    \textit{Challenge:} The number of variables is exponential ($2^{|N_l|}$ subsets), requiring column generation.
+
+\end{frame}
+\subsection{The Transformation}
+\begin{frame}[allowframebreaks]
+  \frametitle{From Choice-Based to Sales-Based}
+  \begin{block}{The Transformation Idea}
+      Instead of optimizing \textbf{time duration of offer sets} ($\alpha_l(S)$),
+      we optimize \textbf{sales quantities} ($x_{lk}$).
+      \[
+        \text{Dimension reduction: } 2^N \longrightarrow N
+      \]
+  \end{block}
+  
+  \begin{block}{SBLP Formulation}
+    \begin{align*}
+        \max \quad & \sum_{l} \sum_{j \in N_l} r_{lj} x_{lj} \\
+        \text{s.t.} \quad & \sum_{l} A_l x_l \le c \quad \text{(Capacity)} \\
+        & \frac{\vtilde_{l0}}{v_{l0}}x_{l0} + \sum_{k \in N_l} \frac{\vtilde_{lk}}{v_{lk}}x_{lk} = \Lambda_l \quad \text{(\textbf{Balance Constraint})} \\
+        & \frac{x_{lk}}{v_{lk}} \le \frac{x_{l0}}{v_{l0}} \quad \forall k \in N_l \quad \text{(\textbf{Scale Constraint})}
+    \end{align*}
+  \end{block}
+\end{frame}
+
+\subsection{Interpretation}
+\begin{frame}
+  \frametitle{Interpreting SBLP Constraints}
+  \begin{block}{Scale Constraint: The "Exposure" Limit}
+      \[ \frac{x_{lk}}{v_{lk}} \le \frac{x_{l0}}{v_{l0}} \]
+      $\frac{x}{v}$ represents the "exposure time" needed.
+      No product can be exposed longer than the "No-Purchase" option (which is always open).
+  \end{block}
+  \begin{block}{Balance Constraint: Linearized Competition}
+      \[ \frac{\vtilde_{l0}}{v_{l0}}x_{l0} + \sum_{k \in N_l} \frac{\vtilde_{lk}}{v_{lk}}x_{lk} = \Lambda_l \]
+      Treats demand as a fixed pool of "time/exposure". 
+      Increasing sales of product $k$ forces a reduction in others or the no-purchase option.
+  \end{block}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Theorem 3: Equivalence of CBLP and SBLP}
+    \begin{block}{Theorem 3 }
+        $$ \bar{J}(T,c) = R(T,c) $$ if each semgent $l$ follows a GAM choice model.
+    \end{block}
+\end{frame}
+\begin{frame}[allowframebreaks]{Variable Construction: Mapping CBLP $\leftrightarrow$ SBLP}
+
+    \textbf{Primal Mapping: Constructing $x$ from $\alpha$}
+    
+    Given a feasible solution $\alpha_l(S_l)$ to the CBLP, we construct the SBLP sales variables $x_{lk}$ by aggregating the expected sales across all offered sets.
+
+    \begin{itemize}
+        \item \textbf{Product Sales ($x_{lk}$):} 
+        The total expected sales of product $k$ is the sum of sales rates weighted by the time each set $S_l$ is offered.
+        $$ \boxed{x_{lk} = \Lambda_l \sum_{S_l \subseteq N_l : k \in S_l} \alpha_l(S_l) \pi_{lk}(S_l)} $$
+        
+        \item \textbf{No-Purchase "Base" Sales ($x_{l0}$):}
+        The variable $x_{l0}$ captures the portion of no-purchase purely driven by the base attraction $v_{l0}$ (excluding shadow attraction effects).
+        $$ \boxed{x_{l0} = \Lambda_l \sum_{S_l \subseteq N_l} \alpha_l(S_l) \frac{v_{l0}}{v_{l0} + V(S_l) + W(\overline{S}_l)}} $$
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{Dual Mapping: Constructing SBLP Duals from CBLP Duals}
+    
+    Given optimal dual variables from the CBLP:
+    \begin{itemize}
+        \item $z$: Dual for capacity constraint.
+        \item $\tilde{\beta}_l$: Dual for the time constraint $\sum \alpha_l(S_l) = 1$.
+    \end{itemize}
+    
+    We construct the SBLP duals $(\beta_l, z, \gamma_{lk})$ as follows:
+
+    \begin{itemize}
+        \item \textbf{Scale $\beta$:} Normalize by demand volume.
+        $$ \boxed{\beta_l = \frac{\tilde{\beta}_l}{\Lambda_l}} $$
+        
+        \item \textbf{Identify "Profitable" Set ($F_l$):}
+        Determine which products have a non-negative "reduced cost" under the SBLP dual structure.
+        $$ F_l = \left\{ k \in N_l : p_{lk} - z'A_{lk} - \beta_l \frac{\tilde{v}_{lk}}{v_{lk}} \ge 0 \right\} $$
+        
+        \item \textbf{Construct $\gamma_{lk}$:}
+        The variable $\gamma_{lk}$ (dual for the scale constraint) absorbs the surplus value for products in the profitable set $F_l$.
+        $$ \boxed{\gamma_{lk} = \begin{cases} 
+        (p_{lk} - z'A_{lk})v_{lk} - \beta_l \tilde{v}_{lk} & \text{if } k \in F_l \\
+        0 & \text{if } k \notin F_l 
+        \end{cases}} $$
+    \end{itemize}
+
+\end{frame}
+
+\section{Theoretical Analysis}
+\subsection{Recovering the Optimal Strategy of CBLP}
+\begin{frame}[allowframebreaks]{Recovering the Optimal Strategy (CBLP from SBLP)}
+    
+    The SBLP gives us optimal sales targets $x_{lk}$, but operations require a schedule of \textbf{offer sets} $S_l$ and their duration $\alpha_l(S_l)$. We recover this strategy using a sorting mechanism.
+    \framebreak
+
+    \begin{enumerate}
+        \item Calculate the \textbf{saturation ratio} $\rho_{lk} = x_{lk}/v_{lk}$ for all products $k \in N_l \cup \{0\}$.
+        
+        \item \textbf{Sorting:} Relabel products such that they are ordered by this ratio:
+        $$ \frac{x_{l1}}{v_{l1}} \ge \frac{x_{l2}}{v_{l2}} \ge \dots \ge \frac{x_{ln}}{v_{ln}} \ge \frac{x_{l, n+1}}{v_{l, n+1}} \equiv 0 $$
+        
+        \item \textbf{Nested Sets Construction:} The optimal offer sets are strictly \textbf{nested}:
+        $$ S_{l0} = \emptyset, \quad S_{l1}=\{1\}, \quad S_{l2}=\{1,2\}, \quad \dots, \quad S_{ln}=\{1,\dots,n\} $$
+        
+        \item \textbf{Time Allocation Formula:} The fraction of time to offer set $S_{lk}$ is:
+        $$ \alpha_l(S_{lk}) = \left( \frac{x_{lk}}{v_{lk}} - \frac{x_{l,k+1}}{v_{l,k+1}} \right) \frac{\tilde{v}_{l0} + \tilde{V}(S_{lk})}{\Lambda_l} $$
+    \end{enumerate}
+
+    \framebreak
+
+    \textbf{Key Insight: The Nested Structure}
+    
+    This recovery proves that the optimal policy always consists of a sequence of expanding sets $\emptyset = S_{l0} \subset S_{l1} \subset S_{l2} \subset \dots$.
+    
+    \begin{itemize}
+        \item We only need to consider at most $|N_l| + 1$ sets per segment $l$ to implement the optimal strategy. Rather than an exponential number of combinations.
+    \end{itemize}
+    \framebreak
+
+    \textbf{Sorting Logic: Competition vs. Revenue}
+    
+    Unlike BAM or IDM, the sort order in GAM is \textbf{not necessarily by revenue} ($p_k$).
+    \begin{itemize}
+        \item \textbf{Role of Shadow Attraction ($w$):} A product with a high shadow attraction $w_k$ (high competition) implies that if we don't offer it, customers will leave (spill) rather than switch.
+        \item \textbf{Strategic Implication:} The model may prioritize offering a lower-fare product with high $w_k$ (to prevent spill) over a higher-fare product with low $w_k$ (where recapture is likely).
+    \end{itemize}
+
+\end{frame}
+
+\subsection{Relationship between BAM, IDM, and GAM}
+\begin{frame}[allowframebreaks]{Relationship between BAM, IDM, and GAM}
+    \textbf{Key Takeaway:}
+    \begin{itemize}
+        \item The optimal revenues from BAM and IDM serve as \textbf{feasible solutions} / \textbf{lower bounds} for the GAM revenue.
+    \end{itemize}
+
+    \framebreak
+
+    \begin{block}{Proposition 2}
+    Let $\alpha_l(S_l)$ be a solution to the CBLP for the GAM with parameters $(v, w)$. Then, this solution is feasible (but likely suboptimal) for any GAM with higher shadow attractions $w' \in (w, v]$.
+    \end{block}
+
+    \textbf{Corollary:} 
+    A solution generated for the \textbf{BAM} ($w=0$) is a feasible solution for the \textbf{GAM} ($w > 0$) and Revenue(BAM) $\le$ Revenue(GAM).
+    
+    \framebreak
+    \textbf{Proof of Proposition 2:}
+    \begin{itemize}
+        \item The feasibility depends on the capacity constraint: $\sum \Lambda_l \sum A_l \underline{\pi_l(S_l)} \alpha_l(S_l) \le c$.
+        \item Recall the choice probability under GAM:
+        $$ \pi_{jk}(S) = \frac{v_{jk}}{v_{j0} + V(S) + W(\overline{S})} $$
+        \item As $w$ increases, the denominator $W(\overline{S})$ increases (or stays same).
+        \item Therefore, $\pi_{jk}(S)$ is \textbf{decreasing} in $w$.
+        \item If a solution $\alpha$ satisfies capacity for $w=0$ (BAM), it consumes \textit{strictly less} capacity for $w > 0$ (GAM). Thus, it remains feasible.
+    \end{itemize}
+
+    \framebreak
+
+    \begin{block}{Proposition 3}
+    Let $x_{lk}$ be an optimal solution to the SBLP for a GAM with parameters $(v, w)$. Then $x_{lk}$ is a feasible solution for any GAM with lower shadow attractions $w' \in [0, w]$.
+    \end{block}
+
+    \textbf{Corollary:}
+    A solution generated for the \textbf{IDM} ($w=v$) is a feasible solution for the \textbf{GAM} ($w < v$) and Revenue(IDM) $\le$ Revenue(GAM).
+    \framebreak
+
+    \textbf{Proof of Proposition 3:}
+    \begin{itemize}
+        \item We check the SBLP demand balance constraint. For the original $w$, we have equality:
+        $$ x_{l0} + \sum_{k} x_{lk} + \sum_{k} w_{lk} \left( \frac{x_{l0}}{v_{l0}} - \frac{x_{lk}}{v_{lk}} \right) = \Lambda_l $$
+        \item Consider a model with $w'_{lk} \le w_{lk}$. Since scale constraints imply $( \frac{x_{l0}}{v_{l0}} - \frac{x_{lk}}{v_{lk}} ) \ge 0$, reducing $w$ to $w'$ makes the LHS \textbf{smaller}:
+        $$ \text{LHS}(w') \le \text{LHS}(w) = \Lambda_l $$
+        \item We can increase the slack variable $x_{l0}$ to $x'_{l0} \ge x_{l0}$ to restore equality.
+        \item Increasing $x_{l0}$ preserves the scale constraints ($x_{lk}/v_{lk} \le x'_{l0}/v_{l0}$) and does not affect capacity (since $x_{lk}$ are fixed). Thus, the solution is feasible.
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{Numerical Insights (Asymmetry of Performance)}
+    
+    \textbf{The Experiment Setup (Example 5)}
+    \begin{itemize}
+        \item \textbf{Scenario:} A network with 3 flights and high/low fares.
+        \item \textbf{True Model:} p-GAM with recapture parameter $\theta \in [0, 1]$.
+        \item \textbf{Comparison:} We compare the revenue performance of using the wrong model (BAM or IDM) against the true model (GAM).
+    \end{itemize}
+
+    \framebreak
+
+    % graphic
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.5\textwidth]{assets/f1.png}
+        \caption{Revenue Loss from Using BAM or IDM vs. True p-GAM Model}
+    \end{figure}
+
+    \framebreak
+
+    \textbf{The Asymmetry of Error}
+    
+    Figure 1 in the paper reveals a striking asymmetry in performance degradation:
+
+    \begin{enumerate}
+        \item \textbf{Risk of Overestimating Recapture (Using BAM):}
+        \begin{itemize}
+            \item \textbf{Scenario:} You use BAM (assuming high recapture, $\theta=0$) but the market is actually IDM-like (low recapture, $\theta \approx 1$).
+            \item \textbf{Result:} BAM anticipates recapture that doesn't exist. It aggressively closes low-fare classes, expecting customers to buy up. They don't; they leave (Spill).
+            \item \textbf{Impact:} Revenue loss can be as high as \textbf{10\%}.
+        \end{itemize}
+        
+        \item \textbf{Risk of Underestimating Recapture (Using IDM):}
+        \begin{itemize}
+            \item \textbf{Scenario:} You use IDM (assuming no recapture, $\theta=1$) but the market is actually BAM-like (high recapture, $\theta \approx 0$).
+            \item \textbf{Result:} IDM is pessimistic. It keeps low-fare classes open longer to capture demand, missing some opportunity to force buy-up.
+            \item \textbf{Impact:} Revenue loss is relatively small, only about \textbf{4\%} in the worst case ($\theta=0$). For $\theta \ge 0.4$, the loss is negligible ($< 0.25\%$).
+        \end{itemize}
+    \end{enumerate}
+
+    \framebreak
+
+    {\begin{table}[]
+        \centering\tiny
+        \resizebox{\textwidth}{!}{%
+        \begin{tabular}{@{}lp{5cm}p{5cm}@{}}
+            \toprule
+            \textbf{Feature} & \textbf{Example 5: The Theoretical Trap} & \textbf{Example 6: The Realistic Rescue} \\ \midrule
+            \textbf{Scenario} & \textbf{Fixed Parameters} & \textbf{Estimated Parameters} \\ \midrule
+            \textbf{Rule} & You are given the \textbf{true} attraction values ($v$), but you stubbornly use the wrong recapture parameter ($\theta=0$ for BAM). & You \textbf{don't know} $v$. You only see sales data generated by the true GAM model, and you must \textbf{fit} a BAM model to it. \\ \midrule
+            \textbf{What is Tested?} & Pure \textbf{structural} robustness. (How bad is the BAM formula itself?) & Robustness after \textbf{calibration}. (Can data fitting fix a wrong model?) \\ \midrule
+            \textbf{Key Outcome} & \textcolor{red}{\textbf{Disaster:}} BAM loses $\sim$10\% revenue because it hallucinates recapture that doesn't exist. & \textcolor{blue}{\textbf{Recovery:}} BAM recovers to $\sim$99\% revenue. The estimation "distorts" $v$ to compensate for missing $w$. \\ \bottomrule
+        \end{tabular}%
+        }
+    \end{table}}
+
+    \begin{alertblock}{The Core Difference}
+    Example 5 assumes you have the \textit{right} data but use the \textit{wrong} logic. Example 6 allows the wrong logic to find its own "best-fit" data, which surprisingly fixes the problem.
+    \end{alertblock}
+
+    \framebreak
+
+    \textbf{The "Saving Grace" of Estimation (Example 6)}
+    
+    While Example 5 showed a 10\% revenue loss for BAM under fixed parameters, Example 6 introduces a realistic twist: \textbf{Parameter Estimation}.
+    
+    \begin{itemize}
+        \item \textbf{Setup:} We simulate sales data using the true GAM model ($\theta \in \{0.1, 0.5, 0.9\}$).
+        \item \textbf{Process:} We force the BAM model to "fit" this data, estimating its own best-fit attraction values ($v_{BAM}$).
+        \item \textbf{Result:} The revenue gap closes dramatically!
+        \begin{itemize}
+            \item Even at $\theta=0.9$ (where BAM should fail), the estimated BAM captures \textbf{98.9\%} of optimal revenue (vs. $\sim$90\% in Ex. 5) .
+        \end{itemize}
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{Why Does Estimation Help?}
+    
+    \begin{block}{The Compensatory Effect}
+    The estimation algorithm distorts the attraction parameters ($v$) to compensate for the missing shadow attraction ($w$).
+    \end{block}
+
+    \begin{itemize}
+        \item \textbf{Bias as a Buffer:} 
+        The estimated parameters for BAM are "way off" from the true values (severely biased) .
+        \item \textbf{Functional Fit:} 
+        Despite the wrong parameters, the \textit{predicted choice probabilities} and resulting \textit{offer sets} end up being remarkably similar to the optimal policy.
+        \item \textbf{Conclusion:} 
+        Fitting the wrong model to real data is safer than using the wrong model with "correct" (but theoretically assumed) parameters. Estimation provides a safety net.
+    \end{itemize}
+\end{frame}
+
+\subsection{Heuristics for Stochastic Control}
+\begin{frame}{Heuristics for Stochastic Control}
+    The computational efficiency of SBLP enables practical heuristics for the dynamic, stochastic problem.
+
+    \textbf{1. Bid-Price Control (Dual-Based)}
+    \begin{itemize}
+        \item Use SBLP duals ($z, \beta_l$) to calculate \textbf{reduced fares}.
+        \item \textbf{Rule:} Open a product if its fare covers the opportunity cost of capacity and demand balancing.
+        \item \textit{Note:} Requires frequent re-solving to prevent over-acceptance of marginal products.
+    \end{itemize}
+
+    \textbf{2. Offer Set Control (Primal-Based)}
+    \begin{itemize}
+        \item Recover \textbf{nested offer sets} directly from the SBLP solution.
+        \item Offer the largest recommended sets (containing lower fares) first.
+        \item \textbf{Benefit:} More robust than bid-prices; avoids accepting products that shouldn't be part of the optimal assortment.
+    \end{itemize}
+\end{frame}
+
+\subsection{Case: Overlapping Segments}
+\begin{frame}[allowframebreaks]{Overlapping Segments}
+    
+    The SBLP formulation remains valid even when products overlap across different market segments (e.g., shared flight legs).
+    \begin{itemize}
+        \item \textbf{Independent Management:} The model assumes the firm can control offers for each segment independently (e.g., via fences).
+        \item \textbf{Single Offer Constraint:} If a single offer set must be shown to all segments, the SBLP provides an \textbf{upper bound} on revenue.
+        \item \textbf{Advantage:} SBLP allows for easier addition of cuts to approximate commonality constraints compared to the column-generation based CBLP.
+    \end{itemize}
+\end{frame}
+
+\subsection{Case: The Assortment Problem}
+\begin{frame}[allowframebreaks]{The Assortment Problem (Infinite Capacity)}
+
+    \textbf{Problem Definition}
+    
+    With infinite capacity ($c = \infty$), the network problem separates into independent assortment problems for each market segment.
+    \begin{itemize}
+        \item \textbf{Goal:} Find a subset $S \subseteq N$ to maximize revenue rate:
+        $$ r(S) = \sum_{k \in S} p_k \pi_k(S) $$
+        \item \textbf{Sorting Criterion:} Sort products not by price $p_k$, but by the \textbf{competition-adjusted price}:
+        $$ \tilde{p}_k = p_k \frac{v_k}{\tilde{v}_k} = \frac{p_k}{1 - \theta_k}, \quad \text{where } \theta_k = \frac{w_k}{v_k} $$
+        \item \textit{Insight:} A lower-priced product with high competition (large $w_k$) might be ranked higher than a high-priced product with no competition.
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{Theorem 4: Optimal Assortment}
+    
+    Let products be indexed such that $\tilde{p}_1 \ge \tilde{p}_2 \ge \dots \ge \tilde{p}_n$.
+    
+    Define the cumulative revenue of offering the first $j$ products ($X_j = \{1, \dots, j\}$) as $R_j = r(X_j)$.
+    
+    \begin{block}{Theorem 4}
+    The optimal assortment is the set $X_j = \{1, \dots, j\}$, where $j$ is the largest index such that the adjusted price exceeds the current revenue:
+    $$ j = \max \{ k : R_k \le \tilde{p}_k \} $$
+    \end{block}
+
+    \framebreak
+
+    \textbf{Proof of Theorem 4 (Part 1: Primal Feasibility)}
+    
+    We construct a feasible solution to the SBLP Assortment problem using the set $X_j$.
+    \begin{itemize}
+        \item Set $x_k = v_k \frac{x_0}{v_0}$ for $k \in X_j$ and $x_k = 0$ otherwise.
+        \item Substitute into the Balance Constraint $\frac{\tilde{v}_0}{v_0}x_0 + \sum \frac{\tilde{v}_k}{v_k}x_k = 1$:
+        $$ x_0 \left( \frac{\tilde{v}_0}{v_0} + \sum_{k \in X_j} \frac{\tilde{v}_k}{v_0} \right) = 1 \implies x_0 = \frac{v_0}{\tilde{v}_0 + \tilde{V}(X_j)} $$
+        \item This yields valid probabilities $x_k = \pi_k(X_j)$, with objective value $R_j$.
+    \end{itemize}
+
+    \framebreak
+
+    \textbf{Proof of Theorem 4 (Part 2: Dual Construction)}
+    
+    We show $R_j$ is optimal by constructing a feasible dual solution with objective value $R_j$.
+    \begin{itemize}
+        \item \textbf{Dual Problem:} $\min \beta$ s.t. $\tilde{v}_k \beta + \gamma_k \ge p_k v_k$ and $\tilde{v}_0 \beta \ge \sum \gamma_k$.
+        \item \textbf{Construction:} Set $\beta = R_j$.
+        \begin{itemize}
+            \item For $k \in X_j$: Set $\gamma_k = p_k v_k - \tilde{v}_k \beta$.
+            \item For $k \notin X_j$: Set $\gamma_k = 0$.
+        \end{itemize}
+        \item \textbf{Check Constraints:}
+            \begin{enumerate}
+                \item $\gamma_k \ge 0$: For $k \in X_j$, this means $p_k v_k \ge \tilde{v}_k R_j \iff \tilde{p}_k \ge R_j$. This holds by the sorting and definition of $j$.
+                \item Balance: $\tilde{v}_0 \beta - \sum \gamma_k = \beta(\tilde{v}_0 + \tilde{V}(X_j)) - \sum p_k v_k = 0$. (Since $\beta = R_j$).
+            \end{enumerate}
+    \end{itemize}
+    Since Primal Value = Dual Value = $R_j$, the set $X_j$ is optimal.
+
+\end{frame}
+
+% Conclusion
+\section{Conclusion}
+\begin{frame}
+  \frametitle{Conclusion}
+  \begin{itemize}
+      \item \textbf{Modeling Contribution:} 
+      GAM unifies BAM and IDM using Shadow Attraction, allowing precise control of spill/recapture without the complexity of Nested Logit.
+      
+      \item \textbf{Optimization Contribution:} 
+      SBLP transforms the intractable CBLP ($2^N$) into a linear-sized LP ($N$), making network RM scalable.
+      
+      \item \textbf{Structural Insight:}
+      Optimal policies are \textbf{Nested} based on sales-to-attraction ratios, not just price.
+  \end{itemize}
+  \vspace{1cm}
+  \centering
+  \large \textbf{Q \& A}
+\end{frame}
+
+% References
+\begin{frame}[allowframebreaks]
+  \frametitle{References}
+  \printbibliography
+\end{frame}
+\end{document}
