@@ -2,3 +2,5 @@
 !.gitignore
 !*.tex
 !*.bib
+!assets/
+!assets/*
